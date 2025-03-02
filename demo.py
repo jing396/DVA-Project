@@ -18,7 +18,7 @@ df = df[~df["LOCATION"].isnull()]
 
 # Get weather station df
 files = glob.glob("data/NY Weather*.csv")
-df_weather = pd.concat([pd.read_csv(file) for file in files])
+df_weather = pd.concat([pd.read_csv(file, low_memory=False) for file in files])
 
 # Merge with weather data using crash date and nearest weather station
 df = df.merge(
@@ -31,3 +31,15 @@ df = df.merge(
 )
 # %%
 df
+
+# print(df.head())  
+
+# print(df.shape)
+
+df_prcp = df[df["PRCP"].notnull()].head(10)
+
+df_snow = df[df["SNOW"].notnull()].head(10)
+
+sample_20_rows = pd.concat([df_prcp, df_snow], ignore_index=True)
+
+sample_20_rows.to_csv("sample_20_rows.csv", index=False)

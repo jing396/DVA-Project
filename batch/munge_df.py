@@ -23,7 +23,7 @@ def munge_df(df):
     df.columns = df.columns.str.replace(" ", "_")
 
     # Parse dates
-    df["CRASH_DATE"] = pd.to_datetime(df["CRASH_DATE"]).dt.strftime("%Y-%m-%d")
+    df["CRASH_DATE"] = pd.to_datetime(df["CRASH_DATE"], errors='coerce').dt.strftime("%Y-%m-%d")
 
     missing_prop = (
         df[df["ZIP_CODE"].isnull() & df["LOCATION"].isnull()].shape[0] / df.shape[0]
@@ -59,17 +59,17 @@ def munge_df(df):
 
     # Impute zip codes
     print(
-        f"{round((df[df["ZIP_CODE"].isnull()].shape[0]/df.shape[0])*100,2)}% of the data has missing zip codes prior to imputing"
+        f"{round((df[df['ZIP_CODE'].isnull()].shape[0]/df.shape[0])*100,2)}% of the data has missing zip codes prior to imputing"
     )
     df["ZIP_CODE"] = np.where(
         df["ZIP_CODE"].isnull(), df["ZIP_CODE_IMPUTED"], df["ZIP_CODE"]
     )
     print(
-        f"{round((df[df["ZIP_CODE"].isnull()].shape[0]/df.shape[0])*100,2)}% of the data has missing zip codes after imputing"
+        f"{round((df[df['ZIP_CODE'].isnull()].shape[0]/df.shape[0])*100,2)}% of the data has missing zip codes after imputing"
     )
     locations_prop = df[~df["LOCATION"].isnull()]
     print(
-        f"{round((locations_prop[~locations_prop["ZIP_CODE"].isnull()].shape[0]/locations_prop.shape[0])*100,2)}% of the rows with lat/lon contain zip codes after imputing"
+        f"{round((locations_prop[~locations_prop['ZIP_CODE'].isnull()].shape[0]/locations_prop.shape[0])*100,2)}% of the rows with lat/lon contain zip codes after imputing"
     )
 
     # Clean up zip codes
