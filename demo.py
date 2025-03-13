@@ -29,10 +29,11 @@ df = df.merge(
     validate="m:1",
     suffixes=["_CRASH", "_WEATHER_STATION"],
 )
+df.to_csv("data/df_demo.csv", index=False)
 # %%
 df
 
-# print(df.head())  
+# print(df.head())
 
 # print(df.shape)
 
