@@ -30,7 +30,9 @@ df = df.merge(
     suffixes=["_CRASH", "_WEATHER_STATION"],
 )
 # Merge population density df to main df
-population_lookup = pd.read_csv("data/population_lookup.csv", dtype={"ZIP_CODE": str})
+population_lookup = pd.read_csv(
+    "data/population_lookup.csv", dtype={"ZIP_CODE": str, "ZCTA": str}
+)
 df = df.merge(population_lookup, on="ZIP_CODE", how="left", validate="m:1")
 df.to_csv("data/df_demo.csv", index=False)
 
