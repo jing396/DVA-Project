@@ -7,6 +7,10 @@ from folium.plugins import HeatMap
 import json
 import geopandas as gpd
 import branca
+from folium import Map
+from folium.plugins import MeasureControl
+from branca.element import Template, MacroElement
+from shapely.geometry import Point
 
 print("Current Working Directory:", os.getcwd())
 
@@ -83,9 +87,9 @@ plt.tight_layout()
 plt.savefig("output/Time Trends.png", dpi=300, bbox_inches="tight")
 
 # ####################################################################################################################################################
-# # 2. Spatial analysis to identify accident hotspots across NYC
+# 2. Spatial analysis to identify accident hotspots across NYC
 
-# ############### 2.1. Accident heatmap with zip code boundaries #################
+############### 2.1. Accident heatmap with zip code boundaries #################
 # Define the path for NYC ZIP Code GeoJSON file downloaded from the following link
 # https://www.kaggle.com/datasets/saidakbarp/nyc-zipcode-geodata?resource=download)
 nyc_zip_geojson_path = "nyc-zip-code-tabulation-areas-polygons.geojson"
@@ -160,6 +164,23 @@ for feature in nyc_zip_geojson["features"]:
 # Add Layer Control
 folium.LayerControl().add_to(nyc_map)
 
+# Define scale bar template
+scale_bar_template = """
+{% macro script(this, kwargs) %}
+    L.control.scale({position: 'bottomright', metric: true, imperial: true}).addTo({{ this._parent.get_name() }});
+{% endmacro %}
+"""
+
+# Create the scale bar element
+scale_bar = MacroElement()
+scale_bar._template = Template(scale_bar_template)
+
+# Add it to the map
+nyc_map.add_child(scale_bar)
+
+# Add measure control
+nyc_map.add_child(MeasureControl(primary_length_unit="miles", secondary_length_unit="kilometers"))
+
 # Save the interactive map
 map_filename = "output/NYC_Accident_Heatmap_with_ZIP.html"
 nyc_map.save(map_filename)
@@ -167,7 +188,7 @@ nyc_map.save(map_filename)
 print(f"NYC Accident Heatmap with ZIP Code Boundaries: {map_filename}")
 
 
-################ 2.2 Accident heatmap with borough boundaries #################
+# # ################ 2.2 Accident heatmap with borough boundaries #################
 # Define the path for NYC Borough Boundaries GeoJSON file downloaded from the following link
 # https://github.com/codeforgermany/click_that_hood/blob/main/public/data/new-york-city-boroughs.geojson
 borough_geojson_path = "new-york-city-boroughs.geojson"
@@ -231,6 +252,26 @@ for _, row in gdf_boroughs.iterrows():
         icon=folium.DivIcon(html=f'<div style="font-size: 12pt; font-weight: bold; color: black;">{borough_name}</div>'),
     ).add_to(nyc_map)
 
+# Add Layer Control
+folium.LayerControl().add_to(nyc_map)
+
+# Define scale bar template
+scale_bar_template = """
+{% macro script(this, kwargs) %}
+    L.control.scale({position: 'bottomright', metric: true, imperial: true}).addTo({{ this._parent.get_name() }});
+{% endmacro %}
+"""
+
+# Create the scale bar element
+scale_bar = MacroElement()
+scale_bar._template = Template(scale_bar_template)
+
+# Add it to the map
+nyc_map.add_child(scale_bar)
+
+# Add measure control
+nyc_map.add_child(MeasureControl(primary_length_unit="miles", secondary_length_unit="kilometers"))
+
 # Save the interactive map
 map_filename = 'output/NYC_Accident_Heatmap_with_Boroughs.html'
 nyc_map.save(map_filename)
@@ -239,7 +280,7 @@ nyc_map.save(map_filename)
 print(f'NYC Accident Heatmap with Borough Boundaries: {map_filename}')
 
 
-########## 2.2.4 Bar graph for comparing crash counts across boroughs #########################
+# ########## 2.2.4 Bar graph for comparing crash counts across boroughs #########################
 crash_counts = df["BOROUGH"].value_counts().sort_values(ascending=False)
 
 plt.figure(figsize=(8, 5))
@@ -393,6 +434,26 @@ folium.GeoJson(
 # Add color legend
 colormap.add_to(nyc_map)
 
+# Add Layer Control
+folium.LayerControl().add_to(nyc_map)
+
+# Define scale bar template
+scale_bar_template = """
+{% macro script(this, kwargs) %}
+    L.control.scale({position: 'bottomright', metric: true, imperial: true}).addTo({{ this._parent.get_name() }});
+{% endmacro %}
+"""
+
+# Create the scale bar element
+scale_bar = MacroElement()
+scale_bar._template = Template(scale_bar_template)
+
+# Add it to the map
+nyc_map.add_child(scale_bar)
+
+# Add measure control
+nyc_map.add_child(MeasureControl(primary_length_unit="miles", secondary_length_unit="kilometers"))
+
 # Save the interactive map
 map_filename = "output/NYC_Crash_Severity_Choropleth.html"
 nyc_map.save(map_filename)
@@ -402,9 +463,9 @@ print(f'Choropleth Map showing crash severity by ZIP code: {map_filename}')
 
 
 # ####################################################################################################################################################
-# # 3. Weather impact on accidents to how weather conditions affect crashes.
+# 3. Weather impact on accidents to how weather conditions affect crashes.
 
-# # 3.1. Horizontal bar graphs for PRCP, SNWD, SNWD, TMAX, TMIN, SEASON
+# 3.1. Horizontal bar graphs for PRCP, SNWD, SNWD, TMAX, TMIN, SEASON
 
 # Define bin settings specific for PRCP, SNWD, SNWD, TMAX, TMIN
 weather_vars = ["PRCP", "SNOW", "SNWD", "TMAX", "TMIN"]
@@ -526,4 +587,130 @@ plt.savefig("output/season_month_stacked_bar.png")
 
 
 
+# ####################################################################################################################################################
+# ############### 4. Choropleth map shows prediction accuracy based on zip code ##############
 
+# Load the prediction data
+dfp = pd.read_csv("data_with_predictions.csv")
+
+# Rebuild crash GeoDataFrame from cleaned coordinates
+dfp_clean = dfp.dropna(subset=["LATITUDE_CRASH", "LONGITUDE_CRASH"]).copy()
+geometry = [Point(xy) for xy in zip(dfp_clean["LONGITUDE_CRASH"], dfp_clean["LATITUDE_CRASH"])]
+gdf_crashes = gpd.GeoDataFrame(dfp_clean, geometry=geometry, crs="EPSG:4326")
+
+# Reload the uploaded GeoJSON file and ensure proper CRS
+gdf_zip = gpd.read_file("nyc-zip-code-tabulation-areas-polygons.geojson").to_crs(epsg=4326)
+
+# Fix potential invalid geometries
+gdf_zip["geometry"] = gdf_zip["geometry"].buffer(0)
+
+# Identify ZIP code column
+zip_column = "postalCode" if "postalCode" in gdf_zip.columns else "ZIPCODE"
+gdf_zip[zip_column] = gdf_zip[zip_column].astype(str)
+
+# Spatial join to get ZIP code for each crash location
+gdf_joined = gpd.sjoin(gdf_crashes, gdf_zip[[zip_column, "geometry"]], how="left", predicate="within")
+gdf_joined.rename(columns={zip_column: "ZIP_CODE_IMPUTED"}, inplace=True)
+
+# Save result
+joined_output_path = "output/data_with_predictions_with_zip_spatial.csv"
+gdf_joined.to_csv(joined_output_path, index=False)
+
+
+# Filter out rows where ZIP_CODE_IMPUTED is missing
+gdf_crashes = gpd.read_file("output/data_with_predictions_with_zip_spatial.csv")
+gdf_crashes = gdf_crashes.dropna(subset=["ZIP_CODE_IMPUTED"]).copy()
+
+# Convert to proper numeric types if needed
+gdf_crashes["DUMMY_KILLED"] = pd.to_numeric(gdf_crashes["DUMMY_KILLED"], errors='coerce')
+gdf_crashes["PREDICTED_DUMMY_KILLED"] = pd.to_numeric(gdf_crashes["PREDICTED_DUMMY_KILLED"], errors='coerce')
+
+# Calculate prediction accuracy by ZIP code
+gdf_crashes["CORRECT"] = (gdf_crashes["DUMMY_KILLED"] == gdf_crashes["PREDICTED_DUMMY_KILLED"]).astype(int)
+accuracy_by_zip = gdf_crashes.groupby("ZIP_CODE_IMPUTED").agg(
+    total_cases=("CORRECT", "count"),
+    correct_predictions=("CORRECT", "sum")
+)
+accuracy_by_zip["accuracy"] = accuracy_by_zip["correct_predictions"] / accuracy_by_zip["total_cases"]
+accuracy_by_zip.reset_index(inplace=True)
+accuracy_by_zip["ZIP_CODE_IMPUTED"] = accuracy_by_zip["ZIP_CODE_IMPUTED"].astype(str)
+
+# Remove rows where accuracy is less than 0.9, only two rows.
+filtered_accuracy = accuracy_by_zip[accuracy_by_zip["accuracy"] > 0.9].copy()
+
+# Check the min and max values explicitly
+min_accuracy = filtered_accuracy["accuracy"].min()
+max_accuracy = filtered_accuracy["accuracy"].max()
+# print(f"Accuracy range: {min_accuracy:.4f} to {max_accuracy:.4f}")
+
+# Merge with valid ZIP code GeoJSON
+gdf_zip = gpd.read_file("nyc-zip-code-tabulation-areas-polygons.geojson").to_crs(epsg=4326)
+zip_column = "postalCode" if "postalCode" in gdf_zip.columns else "ZIPCODE"
+gdf_zip[zip_column] = gdf_zip[zip_column].astype(str)
+gdf_merged = gdf_zip.merge(accuracy_by_zip, left_on=zip_column, right_on="ZIP_CODE_IMPUTED", how="inner")
+
+# Clean up geometry
+gdf_merged = gdf_merged[gdf_merged.geometry.notnull()]
+gdf_merged = gdf_merged[gdf_merged.geometry.is_valid]
+
+# Convert your geodataframe to a proper GeoJSON with accuracy in properties
+gdf_merged_json = json.loads(gdf_merged.to_json())
+
+# Create folium map
+m = folium.Map(location=[40.7128, -74.0060], zoom_start=11, tiles="cartodb positron")
+
+# Define color scale
+colormap = branca.colormap.LinearColormap(
+    colors=['#d7191c', '#fdae61', '#ffffbf', '#a6d96a', '#1a9641'],
+    vmin=min_accuracy,
+    vmax=max_accuracy,
+    caption="Prediction Accuracy Level"
+)
+colormap.add_to(m)
+
+# Add choropleth layer
+folium.GeoJson(
+    gdf_merged_json,
+    style_function=lambda feature: {
+        "fillColor": colormap(feature["properties"]["accuracy"]),
+        "color": "black",
+        "weight": 0.5,
+        "Opacity": 0.7,
+        "fillOpacity": 0.6,
+    },
+    tooltip=folium.GeoJsonTooltip(
+        fields=[zip_column, "accuracy"],
+        aliases=["ZIP Code", "Prediction Accuracy"],
+        localize=True,
+        sticky=False,
+        delay=500
+    ),
+    name="Prediction Accuracy by ZIP Code"
+).add_to(m)
+
+# Add Layer Control
+folium.LayerControl().add_to(m)
+
+# Define scale bar template
+scale_bar_template = """
+{% macro script(this, kwargs) %}
+    L.control.scale({position: 'bottomright', metric: true, imperial: true}).addTo({{ this._parent.get_name() }});
+{% endmacro %}
+"""
+
+# Create the scale bar element
+scale_bar = MacroElement()
+scale_bar._template = Template(scale_bar_template)
+
+# Add it to the map
+m.add_child(scale_bar)
+
+# Add measure control
+m.add_child(MeasureControl(primary_length_unit="miles", secondary_length_unit="kilometers"))
+
+# Save map
+map_filename = "output/Choropleth_Prediction_Accuracy_By_ZIP.html"
+m.save(map_filename)
+
+# Print the map link
+print(f'Choropleth Map showing prediction accuracy by ZIP code: {map_filename}')
